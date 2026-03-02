@@ -2,14 +2,22 @@
  * Application configuration loaded from environment variables.
  */
 export interface AppConfig {
-  /** Azure AI Foundry project endpoint (e.g. https://xxx.services.ai.azure.com/api/projects/proj-default) */
-  azureEndpoint: string;
-  /** Azure AI API key */
-  azureApiKey: string;
-  /** Vision model deployment name for slide analysis (e.g. gpt-4o) */
-  visionModel: string;
-  /** Image editing model deployment name (e.g. FLUX.1-Kontext-pro) */
-  imageModel: string;
+  /**
+   * Azure OpenAI endpoint for the vision model (GPT-4o).
+   * This is the deployment-specific base URL, e.g.:
+   * https://ph-foundry.cognitiveservices.azure.com/openai/deployments/gpt-4o
+   */
+  azureVisionEndpoint: string;
+  /** API key for the vision model endpoint */
+  azureVisionApiKey: string;
+  /**
+   * Azure endpoint for the image editing model (FLUX.1-Kontext-pro).
+   * This is the deployment-specific base URL, e.g.:
+   * https://ph-foundry.services.ai.azure.com/openai/deployments/FLUX.1-Kontext-pro
+   */
+  azureImageEndpoint: string;
+  /** API key for the image model endpoint */
+  azureImageApiKey: string;
   /** DPI for rendering PDF pages (default: 200) */
   pdfDpi: number;
   /** PPTX slide width in inches (default: 13.333, widescreen 16:9) */

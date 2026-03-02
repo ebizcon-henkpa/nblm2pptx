@@ -20,14 +20,13 @@ export class ImageService {
    * @returns Cleaned image buffer with text removed
    */
   async removeTextFromImage(imageBuffer: Buffer): Promise<Buffer> {
-    console.log(`  Removing text from image with ${this.config.imageModel}...`);
+    console.log(`  Removing text from image...`);
 
     const base64Image = imageBuffer.toString("base64");
 
-    // Use the Azure AI Foundry images/generations endpoint with image input
-    // FLUX.1-Kontext-pro supports in-context editing via the generations endpoint
-    const endpoint = this.config.azureEndpoint.replace(/\/$/, "");
-    const url = `${endpoint}/openai/deployments/${this.config.imageModel}/images/generations?api-version=2024-10-21`;
+    // Use the deployment-specific endpoint for image generation
+    const endpoint = this.config.azureImageEndpoint;
+    const url = `${endpoint}/images/generations?api-version=2024-10-21`;
 
     const requestBody = {
       prompt:
@@ -45,7 +44,7 @@ export class ImageService {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "api-key": this.config.azureApiKey,
+        "api-key": this.config.azureImageApiKey,
       },
       body: JSON.stringify(requestBody),
     });
@@ -86,8 +85,8 @@ export class ImageService {
   private async removeTextViaEditsEndpoint(
     imageBuffer: Buffer
   ): Promise<Buffer> {
-    const endpoint = this.config.azureEndpoint.replace(/\/$/, "");
-    const url = `${endpoint}/openai/deployments/${this.config.imageModel}/images/edits?api-version=2024-10-21`;
+    const endpoint = this.config.azureImageEndpoint;
+    const url = `${endpoint}/images/edits?api-version=2024-10-21`;
 
     // Create multipart form data
     const formData = new FormData();
@@ -105,7 +104,7 @@ export class ImageService {
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        "api-key": this.config.azureApiKey,
+        "api-key": this.config.azureImageApiKey,
       },
       body: formData,
     });

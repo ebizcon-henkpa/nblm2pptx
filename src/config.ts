@@ -6,40 +6,56 @@ dotenv.config();
 /**
  * Load application configuration from environment variables.
  * Throws if required variables are missing.
+ *
+ * Each model has its own deployment-specific endpoint URL and API key.
+ * These are found in Azure AI Foundry under Models + Endpoints for each deployment.
  */
 export function loadConfig(overrides?: Partial<AppConfig>): AppConfig {
-  const azureEndpoint =
-    overrides?.azureEndpoint ??
-    process.env["AZURE_ENDPOINT"] ??
+  const azureVisionEndpoint =
+    overrides?.azureVisionEndpoint ??
+    process.env["AZURE_VISION_ENDPOINT"] ??
     "";
-  const azureApiKey =
-    overrides?.azureApiKey ??
-    process.env["AZURE_API_KEY"] ??
+  const azureVisionApiKey =
+    overrides?.azureVisionApiKey ??
+    process.env["AZURE_VISION_API_KEY"] ??
+    "";
+  const azureImageEndpoint =
+    overrides?.azureImageEndpoint ??
+    process.env["AZURE_IMAGE_ENDPOINT"] ??
+    "";
+  const azureImageApiKey =
+    overrides?.azureImageApiKey ??
+    process.env["AZURE_IMAGE_API_KEY"] ??
     "";
 
-  if (!azureEndpoint) {
+  if (!azureVisionEndpoint) {
     throw new Error(
-      "AZURE_ENDPOINT is required. Set it in .env or pass --endpoint.\n" +
-        "Example: https://ph-foundry.services.ai.azure.com/api/projects/proj-default"
+      "AZURE_VISION_ENDPOINT is required. Set it in .env or pass --vision-endpoint.\n" +
+        "Example: https://ph-foundry.cognitiveservices.azure.com/openai/deployments/gpt-4o"
     );
   }
-  if (!azureApiKey) {
+  if (!azureVisionApiKey) {
     throw new Error(
-      "AZURE_API_KEY is required. Set it in .env or pass --api-key."
+      "AZURE_VISION_API_KEY is required. Set it in .env or pass --vision-api-key."
+    );
+  }
+  if (!azureImageEndpoint) {
+    throw new Error(
+      "AZURE_IMAGE_ENDPOINT is required. Set it in .env or pass --image-endpoint.\n" +
+        "Example: https://ph-foundry.services.ai.azure.com/openai/deployments/FLUX.1-Kontext-pro"
+    );
+  }
+  if (!azureImageApiKey) {
+    throw new Error(
+      "AZURE_IMAGE_API_KEY is required. Set it in .env or pass --image-api-key."
     );
   }
 
   return {
-    azureEndpoint,
-    azureApiKey,
-    visionModel:
-      overrides?.visionModel ??
-      process.env["AZURE_VISION_MODEL"] ??
-      "gpt-4o",
-    imageModel:
-      overrides?.imageModel ??
-      process.env["AZURE_IMAGE_MODEL"] ??
-      "FLUX.1-Kontext-pro",
+    azureVisionEndpoint: azureVisionEndpoint.replace(/\/$/, ""),
+    azureVisionApiKey,
+    azureImageEndpoint: azureImageEndpoint.replace(/\/$/, ""),
+    azureImageApiKey,
     pdfDpi: overrides?.pdfDpi ?? parseInt(process.env["PDF_DPI"] ?? "200", 10),
     slideWidth:
       overrides?.slideWidth ??

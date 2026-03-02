@@ -21,21 +21,15 @@ program
   .argument("<input>", "Input PDF file path")
   .argument("[output]", "Output PPTX file path (default: input name with .pptx)")
   .option(
-    "--endpoint <url>",
-    "Azure AI Foundry endpoint URL",
-    process.env["AZURE_ENDPOINT"]
+    "--vision-endpoint <url>",
+    "Azure OpenAI deployment endpoint for vision model (e.g. https://ph-foundry.cognitiveservices.azure.com/openai/deployments/gpt-4o)"
   )
-  .option("--api-key <key>", "Azure AI API key", process.env["AZURE_API_KEY"])
+  .option("--vision-api-key <key>", "API key for vision model endpoint")
   .option(
-    "--vision-model <name>",
-    "Vision model deployment name",
-    "gpt-4o"
+    "--image-endpoint <url>",
+    "Azure deployment endpoint for image model (e.g. https://ph-foundry.services.ai.azure.com/openai/deployments/FLUX.1-Kontext-pro)"
   )
-  .option(
-    "--image-model <name>",
-    "Image editing model deployment name",
-    "FLUX.1-Kontext-pro"
-  )
+  .option("--image-api-key <key>", "API key for image model endpoint")
   .option("--dpi <number>", "PDF render DPI", "200")
   .option(
     "--skip-text-removal",
@@ -86,21 +80,21 @@ async function convert(
 
   // Load configuration
   const config = loadConfig({
-    azureEndpoint: options["endpoint"] as string | undefined,
-    azureApiKey: options["api-key"] as string | undefined,
-    visionModel: options["vision-model"] as string | undefined,
-    imageModel: options["image-model"] as string | undefined,
+    azureVisionEndpoint: options["vision-endpoint"] as string | undefined,
+    azureVisionApiKey: options["vision-api-key"] as string | undefined,
+    azureImageEndpoint: options["image-endpoint"] as string | undefined,
+    azureImageApiKey: options["image-api-key"] as string | undefined,
     pdfDpi: options["dpi"] ? parseInt(options["dpi"] as string, 10) : undefined,
   });
 
   const skipTextRemoval = options["skip-text-removal"] === true;
 
   console.log(`\nConfig:`);
-  console.log(`  Vision model:  ${config.visionModel}`);
-  console.log(`  Image model:   ${config.imageModel}`);
-  console.log(`  PDF DPI:       ${config.pdfDpi}`);
-  console.log(`  Text removal:  ${skipTextRemoval ? "DISABLED" : "ENABLED"}`);
-  console.log(`  Slide size:    ${config.slideWidth}" x ${config.slideHeight}"`);
+  console.log(`  Vision endpoint: ${config.azureVisionEndpoint}`);
+  console.log(`  Image endpoint:  ${config.azureImageEndpoint}`);
+  console.log(`  PDF DPI:         ${config.pdfDpi}`);
+  console.log(`  Text removal:    ${skipTextRemoval ? "DISABLED" : "ENABLED"}`);
+  console.log(`  Slide size:      ${config.slideWidth}" x ${config.slideHeight}"`);
 
   // Initialize services
   const aiService = new AiService(config);

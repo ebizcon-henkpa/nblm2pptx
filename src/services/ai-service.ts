@@ -1,5 +1,3 @@
-import ModelClient from "@azure-rest/ai-inference";
-import { AzureKeyCredential } from "@azure/core-auth";
 import type { AppConfig } from "../types/config.js";
 import type { SlideData, SlideElement } from "../types/slide.js";
 import {
@@ -7,19 +5,18 @@ import {
   getSlideAnalysisUserPrompt,
 } from "../prompts/slide-analysis.js";
 
+/** Default API version for Azure OpenAI chat completions */
+const AZURE_OPENAI_API_VERSION = "2024-10-21";
+
 /**
  * Service for AI-powered slide analysis using Azure AI Foundry vision models.
+ * Uses direct fetch calls to the Azure OpenAI-compatible endpoint.
  */
 export class AiService {
   private readonly config: AppConfig;
-  private readonly client: ReturnType<typeof ModelClient>;
 
   constructor(config: AppConfig) {
     this.config = config;
-    this.client = ModelClient(
-      this.config.azureEndpoint,
-      new AzureKeyCredential(this.config.azureApiKey)
-    );
   }
 
   /**
@@ -32,47 +29,57 @@ export class AiService {
     imageBase64: string,
     pageNumber: number
   ): Promise<SlideData> {
-    console.log(`  Analyzing slide ${pageNumber} with ${this.config.visionModel}...`);
+    console.log(`  Analyzing slide ${pageNumber}...`);
 
-    const response = await this.client.path("/chat/completions").post({
-      body: {
-        model: this.config.visionModel,
-        messages: [
-          {
-            role: "system",
-            content: SLIDE_ANALYSIS_SYSTEM_PROMPT,
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: getSlideAnalysisUserPrompt(pageNumber),
+    // Build the Azure OpenAI chat completions URL from the deployment endpoint
+    const endpoint = this.config.azureVisionEndpoint;
+    const url = `${endpoint}/chat/completions?api-version=${AZURE_OPENAI_API_VERSION}`;
+
+    const requestBody = {
+      messages: [
+        {
+          role: "system",
+          content: SLIDE_ANALYSIS_SYSTEM_PROMPT,
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: getSlideAnalysisUserPrompt(pageNumber),
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/png;base64,${imageBase64}`,
+                detail: "high",
               },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:image/png;base64,${imageBase64}`,
-                  detail: "high",
-                },
-              },
-            ],
-          },
-        ],
-        max_tokens: 4096,
-        temperature: 0.1,
-        response_format: { type: "json_object" },
+            },
+          ],
+        },
+      ],
+      max_tokens: 4096,
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+    };
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": this.config.azureVisionApiKey,
       },
+      body: JSON.stringify(requestBody),
     });
 
-    if (response.status !== "200") {
-      const errorBody = response.body as unknown as Record<string, unknown>;
+    if (!response.ok) {
+      const errorText = await response.text();
       throw new Error(
-        `Vision API error (${response.status}): ${JSON.stringify(errorBody)}`
+        `Vision API error (${response.status}): ${errorText}`
       );
     }
 
-    const body = response.body as {
+    const body = (await response.json()) as {
       choices: Array<{ message: { content: string } }>;
     };
     const content = body.choices[0]?.message?.content;
