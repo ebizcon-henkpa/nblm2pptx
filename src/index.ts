@@ -180,14 +180,13 @@ async function convert(
       cleanBackground = await imageService.removeTextFromImage(page.imageBuffer);
     }
 
-    // Mask out image regions AFTER text removal so photos/icons only exist
-    // as separate moveable PPTX objects (not duplicated in the background).
+    // Use FLUX inpainting to fill image regions with natural background.
+    // This sends a second FLUX call with a mask so FLUX extends the
+    // background seamlessly into the areas where images were.
     if (imageRegions.length > 0) {
-      console.log(`  Masking ${imageRegions.length} image region(s) from background...`);
-      cleanBackground = await ImageService.maskImageRegions(
+      cleanBackground = await imageService.inpaintImageRegions(
         cleanBackground,
         imageRegions,
-        slideData.backgroundColor ?? "#FFFFFF",
         page.width,
         page.height
       );
