@@ -31,6 +31,7 @@ program
   )
   .option("--image-api-key <key>", "API key for image model endpoint")
   .option("--dpi <number>", "PDF render DPI", "200")
+  .option("--max-slide <number>", "Only convert up to this slide number (e.g. 3 = slides 1-3)")
   .option(
     "--skip-text-removal",
     "Skip FLUX text removal (use original image as background)",
@@ -88,12 +89,16 @@ async function convert(
   });
 
   const skipTextRemoval = options["skip-text-removal"] === true;
+  const maxSlide = options["max-slide"]
+    ? parseInt(options["max-slide"] as string, 10)
+    : undefined;
 
   console.log(`\nConfig:`);
   console.log(`  Vision endpoint: ${config.azureVisionEndpoint}`);
   console.log(`  Image endpoint:  ${config.azureImageEndpoint}`);
   console.log(`  PDF DPI:         ${config.pdfDpi}`);
   console.log(`  Text removal:    ${skipTextRemoval ? "DISABLED" : "ENABLED"}`);
+  console.log(`  Max slide:       ${maxSlide ?? "all"}`);
   console.log(`  Slide size:      ${config.slideWidth}" x ${config.slideHeight}"`);
 
   // Initialize services
@@ -103,7 +108,13 @@ async function convert(
 
   // Step 1: Convert PDF pages to images
   console.log(`\n[1/4] Converting PDF to images...`);
-  const pages = await PdfService.convertToImages(resolvedInput, config.pdfDpi);
+  let pages = await PdfService.convertToImages(resolvedInput, config.pdfDpi);
+
+  // Filter pages if --max-slide is set
+  if (maxSlide !== undefined && maxSlide > 0) {
+    pages = pages.filter((p) => p.pageNumber <= maxSlide);
+    console.log(`  Limited to slides 1-${maxSlide} (${pages.length} pages)`);
+  }
 
   // Step 2: Analyze each slide with AI vision model
   console.log(`\n[2/4] Analyzing slides with AI...`);
