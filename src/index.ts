@@ -143,9 +143,11 @@ async function convert(
 
     // Crop image elements from the original page
     const croppedImages = new Map<number, Buffer>();
+    const imageRegions: { x: number; y: number; w: number; h: number }[] = [];
     for (let i = 0; i < slideData.elements.length; i++) {
       const element = slideData.elements[i];
       if (element?.type === "image") {
+        imageRegions.push(element.position);
         try {
           const cropped = await ImageService.cropRegion(
             page.imageBuffer,
@@ -160,6 +162,19 @@ async function convert(
           );
         }
       }
+    }
+
+    // Mask out image regions from the background so photos only exist as
+    // separate moveable PPTX objects (not duplicated in the background)
+    if (imageRegions.length > 0) {
+      console.log(`  Masking ${imageRegions.length} image region(s) from background...`);
+      cleanBackground = await ImageService.maskImageRegions(
+        cleanBackground,
+        imageRegions,
+        slideData.backgroundColor ?? "#FFFFFF",
+        page.width,
+        page.height
+      );
     }
 
     processedSlides.push({

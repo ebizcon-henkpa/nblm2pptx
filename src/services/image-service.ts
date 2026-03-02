@@ -116,6 +116,59 @@ export class ImageService {
   }
 
   /**
+   * Mask out (paint over) image regions from a background image.
+   * After FLUX removes text, the photos/illustrations are still visible in the background.
+   * This method paints over those regions with the slide's background color so that
+   * the cropped images (placed as separate PPTX objects) are the only copies.
+   *
+   * @param imageBuffer - The FLUX-cleaned background image
+   * @param imageRegions - Array of bounding boxes (percentage 0-100) for image elements
+   * @param backgroundColor - Hex color to fill masked regions (e.g. "#F0F0F0")
+   * @param pageWidth - Width of the image in pixels
+   * @param pageHeight - Height of the image in pixels
+   * @returns Image buffer with image regions painted over
+   */
+  static async maskImageRegions(
+    imageBuffer: Buffer,
+    imageRegions: BoundingBox[],
+    backgroundColor: string,
+    pageWidth: number,
+    pageHeight: number
+  ): Promise<Buffer> {
+    if (imageRegions.length === 0) {
+      return imageBuffer;
+    }
+
+    // Parse hex color to RGB
+    const hex = backgroundColor.replace(/^#/, "");
+    const r = parseInt(hex.substring(0, 2), 16) || 240;
+    const g = parseInt(hex.substring(2, 4), 16) || 240;
+    const b = parseInt(hex.substring(4, 6), 16) || 240;
+
+    // Create SVG overlay rectangles for each image region
+    const rects = imageRegions
+      .map((bbox) => {
+        const x = Math.round((bbox.x / 100) * pageWidth);
+        const y = Math.round((bbox.y / 100) * pageHeight);
+        const w = Math.round((bbox.w / 100) * pageWidth);
+        const h = Math.round((bbox.h / 100) * pageHeight);
+        return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="rgb(${r},${g},${b})" />`;
+      })
+      .join("\n    ");
+
+    const svgOverlay = Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${pageWidth}" height="${pageHeight}">
+    ${rects}
+  </svg>`
+    );
+
+    return sharp(imageBuffer)
+      .composite([{ input: svgOverlay, top: 0, left: 0 }])
+      .png()
+      .toBuffer();
+  }
+
+  /**
    * Crop a region from a page image based on percentage bounding box.
    * @param imageBuffer - Full page image buffer
    * @param bbox - Bounding box in percentage coordinates (0-100)
