@@ -33,8 +33,8 @@ program
   .option("--dpi <number>", "PDF render DPI", "200")
   .option("--max-slide <number>", "Only convert up to this slide number (e.g. 3 = slides 1-3)")
   .option(
-    "--skip-text-removal",
-    "Skip FLUX text removal (use original image as background)",
+    "--flux-text-removal",
+    "Enable FLUX text removal from backgrounds (disabled by default to preserve visual fidelity)",
     false
   )
   .action(async (input: string, output: string | undefined, options: Record<string, string | boolean | undefined>) => {
@@ -79,16 +79,16 @@ async function convert(
   console.log(`Input:  ${resolvedInput}`);
   console.log(`Output: ${resolvedOutput}`);
 
-  // Load configuration
+  const skipTextRemoval = options["fluxTextRemoval"] !== true;
+
+  // Load configuration (image endpoint only required when FLUX is enabled)
   const config = loadConfig({
     azureVisionEndpoint: options["visionEndpoint"] as string | undefined,
     azureVisionApiKey: options["visionApiKey"] as string | undefined,
     azureImageEndpoint: options["imageEndpoint"] as string | undefined,
     azureImageApiKey: options["imageApiKey"] as string | undefined,
     pdfDpi: options["dpi"] ? parseInt(options["dpi"] as string, 10) : undefined,
-  });
-
-  const skipTextRemoval = options["skipTextRemoval"] === true;
+  }, !skipTextRemoval);
   const maxSlide = options["maxSlide"]
     ? parseInt(options["maxSlide"] as string, 10)
     : undefined;
@@ -97,7 +97,7 @@ async function convert(
   console.log(`  Vision endpoint: ${config.azureVisionEndpoint}`);
   console.log(`  Image endpoint:  ${config.azureImageEndpoint}`);
   console.log(`  PDF DPI:         ${config.pdfDpi}`);
-  console.log(`  Text removal:    ${skipTextRemoval ? "DISABLED" : "ENABLED"}`);
+  console.log(`  FLUX text removal: ${skipTextRemoval ? "DISABLED (using original background)" : "ENABLED"}`);
   console.log(`  Max slide:       ${maxSlide ?? "all"}`);
   console.log(`  Slide size:      ${config.slideWidth}" x ${config.slideHeight}"`);
 
@@ -139,24 +139,51 @@ async function convert(
     }
 
     // Step 3: Crop image elements from the original page (before any modifications)
-    // We add generous padding to image bounding boxes so the crop/mask fully
-    // covers the icon, even if the AI's bounding box is too small.
-    const IMAGE_PADDING_PCT = 5; // extra % on each side
+    // We add padding to image bounding boxes so the crop fully covers the icon,
+    // but we must avoid overlapping text regions (otherwise the cropped "image"
+    // may include text and cause visible duplication).
+    const IMAGE_PADDING_PCT = 5; // try this first, may be reduced to avoid text overlap
+
+    const textRegions = slideData.elements
+      .filter((el) => el?.type === "title" || el?.type === "text" || el?.type === "bulletList")
+      .map((el) => el.position);
+
+    const boxesOverlap = (
+      a: { x: number; y: number; w: number; h: number },
+      b: { x: number; y: number; w: number; h: number }
+    ): boolean => {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    };
+
+    const padAndClamp = (
+      box: { x: number; y: number; w: number; h: number },
+      pad: number
+    ): { x: number; y: number; w: number; h: number } => {
+      const x = Math.max(0, box.x - pad);
+      const y = Math.max(0, box.y - pad);
+      const w = Math.min(100 - x, box.w + pad * 2);
+      const h = Math.min(100 - y, box.h + pad * 2);
+      return { x, y, w, h };
+    };
+
     const croppedImages = new Map<number, Buffer>();
     const imageRegions: { x: number; y: number; w: number; h: number }[] = [];
     for (let i = 0; i < slideData.elements.length; i++) {
       const element = slideData.elements[i];
       if (element?.type === "image") {
-        // Pad the bounding box and clamp to 0-100
-        const padded = {
-          x: Math.max(0, element.position.x - IMAGE_PADDING_PCT),
-          y: Math.max(0, element.position.y - IMAGE_PADDING_PCT),
-          w: Math.min(100 - Math.max(0, element.position.x - IMAGE_PADDING_PCT),
-            element.position.w + IMAGE_PADDING_PCT * 2),
-          h: Math.min(100 - Math.max(0, element.position.y - IMAGE_PADDING_PCT),
-            element.position.h + IMAGE_PADDING_PCT * 2),
-        };
-        console.log(`    Image [${i}]: original (${element.position.x.toFixed(1)}, ${element.position.y.toFixed(1)}, ${element.position.w.toFixed(1)}x${element.position.h.toFixed(1)}) → padded (${padded.x.toFixed(1)}, ${padded.y.toFixed(1)}, ${padded.w.toFixed(1)}x${padded.h.toFixed(1)})`);
+        let pad = IMAGE_PADDING_PCT;
+        let padded = padAndClamp(element.position, pad);
+
+        // Reduce padding if we intersect any text regions
+        while (pad > 0 && textRegions.some((t) => boxesOverlap(padded, t))) {
+          pad = Math.max(0, pad - 0.5);
+          padded = padAndClamp(element.position, pad);
+        }
+
+        console.log(
+          `    Image [${i}]: original (${element.position.x.toFixed(1)}, ${element.position.y.toFixed(1)}, ${element.position.w.toFixed(1)}x${element.position.h.toFixed(1)}) → padded (pad=${pad.toFixed(1)}%) (${padded.x.toFixed(1)}, ${padded.y.toFixed(1)}, ${padded.w.toFixed(1)}x${padded.h.toFixed(1)})`
+        );
+
         imageRegions.push(padded);
         // Also update the element position so PPTX placement matches the padded crop
         element.position = padded;
@@ -177,29 +204,27 @@ async function convert(
     }
 
     // Step 4: Create clean background
-    // Strategy: FLUX removes text only (from the original image with icons intact).
-    // Then we mask out image regions AFTER, so the icons don't appear in the
-    // background. This prevents FLUX from "hallucinating" new images in the
-    // masked areas (e.g. generating faces where icons used to be).
+    // By default, use the original PDF page as the background. This preserves
+    // all decorative elements (circuit patterns, gradients, shapes, etc.) exactly.
+    // FLUX text removal is available but off by default since it tends to destroy
+    // complex backgrounds, producing results that look nothing like the original.
     let cleanBackground: Buffer;
 
-    if (skipTextRemoval) {
-      cleanBackground = page.imageBuffer;
-    } else {
+    if (!skipTextRemoval) {
       console.log(`  Sending to FLUX for text removal...`);
       cleanBackground = await imageService.removeTextFromImage(page.imageBuffer);
-    }
 
-    // Use FLUX inpainting to fill image regions with natural background.
-    // This sends a second FLUX call with a mask so FLUX extends the
-    // background seamlessly into the areas where images were.
-    if (imageRegions.length > 0) {
-      cleanBackground = await imageService.inpaintImageRegions(
-        cleanBackground,
-        imageRegions,
-        page.width,
-        page.height
-      );
+      // Use FLUX inpainting to fill image regions with natural background.
+      if (imageRegions.length > 0) {
+        cleanBackground = await imageService.inpaintImageRegions(
+          cleanBackground,
+          imageRegions,
+          page.width,
+          page.height
+        );
+      }
+    } else {
+      cleanBackground = page.imageBuffer;
     }
 
     processedSlides.push({

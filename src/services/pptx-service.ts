@@ -84,7 +84,7 @@ export class PptxService {
     const slide = pres.addSlide();
     const { slideData, cleanBackground, croppedImages } = processed;
 
-    // Set background: use the cleaned image (text removed) as slide background
+    // Set background: use the slide image as background
     const bgBase64 = cleanBackground.toString("base64");
     slide.background = {
       data: `image/png;base64,${bgBase64}`,

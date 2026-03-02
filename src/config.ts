@@ -10,7 +10,7 @@ dotenv.config();
  * Each model has its own deployment-specific endpoint URL and API key.
  * These are found in Azure AI Foundry under Models + Endpoints for each deployment.
  */
-export function loadConfig(overrides?: Partial<AppConfig>): AppConfig {
+export function loadConfig(overrides?: Partial<AppConfig>, requireImageEndpoint = false): AppConfig {
   const azureVisionEndpoint =
     overrides?.azureVisionEndpoint ??
     process.env["AZURE_VISION_ENDPOINT"] ??
@@ -39,16 +39,18 @@ export function loadConfig(overrides?: Partial<AppConfig>): AppConfig {
       "AZURE_VISION_API_KEY is required. Set it in .env or pass --vision-api-key."
     );
   }
-  if (!azureImageEndpoint) {
-    throw new Error(
-      "AZURE_IMAGE_ENDPOINT is required. Set it in .env or pass --image-endpoint.\n" +
-        "Example: https://ph-foundry.services.ai.azure.com/openai/deployments/FLUX.1-Kontext-pro"
-    );
-  }
-  if (!azureImageApiKey) {
-    throw new Error(
-      "AZURE_IMAGE_API_KEY is required. Set it in .env or pass --image-api-key."
-    );
+  if (requireImageEndpoint) {
+    if (!azureImageEndpoint) {
+      throw new Error(
+        "AZURE_IMAGE_ENDPOINT is required for FLUX text removal. Set it in .env or pass --image-endpoint.\n" +
+          "Example: https://ph-foundry.services.ai.azure.com/openai/deployments/FLUX.1-Kontext-pro"
+      );
+    }
+    if (!azureImageApiKey) {
+      throw new Error(
+        "AZURE_IMAGE_API_KEY is required for FLUX text removal. Set it in .env or pass --image-api-key."
+      );
+    }
   }
 
   return {
