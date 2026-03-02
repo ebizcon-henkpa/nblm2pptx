@@ -52,10 +52,10 @@ export class ImageService {
     formData.append(
       "prompt",
       "Remove ALL text, letters, numbers, and written words from this image completely. " +
-        "Fill the areas where text was with the surrounding background pattern, color, or texture " +
-        "so it looks natural and seamless. Preserve all illustrations, icons, photos, shapes, " +
-        "decorative elements, and background patterns exactly as they are. " +
-        "The result should look like the original slide but with absolutely no text visible anywhere."
+        "Also fill any solid-colored rectangular patches or blank areas seamlessly with " +
+        "the surrounding background pattern, texture, or color. " +
+        "The result should be a clean background image with no text and no blank patches - " +
+        "just smooth, continuous background patterns and decorative elements."
     );
     formData.append("model", "flux.1-kontext-pro");
     formData.append("n", "1");

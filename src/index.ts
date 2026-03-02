@@ -129,19 +129,7 @@ async function convert(
       `  Slide ${page.pageNumber}: ${slideData.elements.length} elements detected`
     );
 
-    // Step 3: Process images - text removal and cropping
-    let cleanBackground: Buffer;
-
-    if (skipTextRemoval) {
-      cleanBackground = page.imageBuffer;
-    } else {
-      console.log(`\n[3/4] Removing text from slide ${page.pageNumber}...`);
-      cleanBackground = await imageService.removeTextFromImage(
-        page.imageBuffer
-      );
-    }
-
-    // Crop image elements from the original page
+    // Step 3: Crop image elements from the original page (before any modifications)
     const croppedImages = new Map<number, Buffer>();
     const imageRegions: { x: number; y: number; w: number; h: number }[] = [];
     for (let i = 0; i < slideData.elements.length; i++) {
@@ -164,17 +152,39 @@ async function convert(
       }
     }
 
-    // Mask out image regions from the background so photos only exist as
-    // separate moveable PPTX objects (not duplicated in the background)
-    if (imageRegions.length > 0) {
-      console.log(`  Masking ${imageRegions.length} image region(s) from background...`);
-      cleanBackground = await ImageService.maskImageRegions(
-        cleanBackground,
-        imageRegions,
-        slideData.backgroundColor ?? "#FFFFFF",
-        page.width,
-        page.height
-      );
+    // Step 4: Create clean background
+    let cleanBackground: Buffer;
+
+    if (skipTextRemoval) {
+      cleanBackground = page.imageBuffer;
+      // Still mask image regions even when skipping text removal
+      if (imageRegions.length > 0) {
+        cleanBackground = await ImageService.maskImageRegions(
+          cleanBackground,
+          imageRegions,
+          slideData.backgroundColor ?? "#FFFFFF",
+          page.width,
+          page.height
+        );
+      }
+    } else {
+      // First mask out image regions on the original, THEN send to FLUX.
+      // This way FLUX inpaints both text areas AND image holes seamlessly
+      // with the surrounding background pattern.
+      let imageForFlux = page.imageBuffer;
+      if (imageRegions.length > 0) {
+        console.log(`  Masking ${imageRegions.length} image region(s) before FLUX...`);
+        imageForFlux = await ImageService.maskImageRegions(
+          imageForFlux,
+          imageRegions,
+          slideData.backgroundColor ?? "#FFFFFF",
+          page.width,
+          page.height
+        );
+      }
+
+      console.log(`  Sending to FLUX for text removal and background cleanup...`);
+      cleanBackground = await imageService.removeTextFromImage(imageForFlux);
     }
 
     processedSlides.push({
