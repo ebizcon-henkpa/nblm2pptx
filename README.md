@@ -34,29 +34,34 @@ Copy `.env.example` to `.env` and set your Azure credentials:
 cp .env.example .env
 ```
 
-Required environment variables:
-- `AZURE_ENDPOINT` - Your Azure AI Foundry project endpoint
-- `AZURE_API_KEY` - Your Azure AI API key
+Required environment variables (find these in Azure AI Foundry → Models + Endpoints → select deployment):
+
+- `AZURE_VISION_ENDPOINT` - GPT-4o deployment endpoint URL (e.g. `https://ph-foundry.cognitiveservices.azure.com/openai/deployments/gpt-4o`)
+- `AZURE_VISION_API_KEY` - API key for the vision model endpoint
+- `AZURE_IMAGE_ENDPOINT` - FLUX deployment endpoint URL (e.g. `https://ph-foundry.services.ai.azure.com/openai/deployments/FLUX.1-Kontext-pro`)
+- `AZURE_IMAGE_API_KEY` - API key for the image model endpoint
 
 Optional:
-- `AZURE_VISION_MODEL` - Vision model name (default: `gpt-4o`)
-- `AZURE_IMAGE_MODEL` - Image model name (default: `FLUX.1-Kontext-pro`)
 - `PDF_DPI` - PDF render resolution (default: `200`)
 
 ## Usage
 
 ```bash
 # Basic usage
-npx nblm2pptx input.pdf output.pptx
+node dist/index.js input.pdf output.pptx
 
-# With CLI options
-npx nblm2pptx input.pdf output.pptx --vision-model gpt-4o --dpi 300
+# Skip text removal (use original images as backgrounds, useful for testing)
+node dist/index.js input.pdf --skip-text-removal
 
-# Skip text removal (use original images as backgrounds)
-npx nblm2pptx input.pdf --skip-text-removal
+# With explicit endpoints (instead of .env)
+node dist/index.js input.pdf \
+  --vision-endpoint https://ph-foundry.cognitiveservices.azure.com/openai/deployments/gpt-4o \
+  --vision-api-key YOUR_KEY \
+  --image-endpoint https://ph-foundry.services.ai.azure.com/openai/deployments/FLUX.1-Kontext-pro \
+  --image-api-key YOUR_KEY
 
-# With explicit endpoint
-npx nblm2pptx input.pdf --endpoint https://ph-foundry.services.ai.azure.com/api/projects/proj-default --api-key YOUR_KEY
+# Higher DPI for better quality
+node dist/index.js input.pdf --dpi 300
 ```
 
 ## How It Works
