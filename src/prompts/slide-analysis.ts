@@ -15,6 +15,13 @@ IMPORTANT RULES:
 9. Be very precise with bounding box positions - they will be used to place elements in PowerPoint
 10. Do NOT include the NotebookLM watermark/logo in the bottom right corner
 
+CRITICAL BOUNDING BOX RULES FOR IMAGES:
+- Image bounding boxes must be GENEROUS - include the ENTIRE visual element including all decorative parts
+- For icons with protruding elements (e.g. lightning bolts, rays, sparkles extending outward), the bounding box must encompass ALL of those parts
+- It is much better to have a bounding box slightly too large than too small
+- For icons/illustrations inside cards: the bounding box should cover the full icon area, not just the central part
+- Double-check that the bounding box fully contains every pixel of the illustration
+
 ELEMENT TYPES:
 - "title": Main slide title or heading (usually largest text)
 - "text": Regular text blocks, subtitles, captions, quotes
@@ -27,7 +34,7 @@ IMPORTANT ORDERING:
 - Shapes that serve as backgrounds for text should come BEFORE the text elements they contain
 - For example: a colored rectangle behind text should be listed before the text element on top of it
 
-For "image" elements: provide a short description of what the image shows.
+For "image" elements: provide a short description of what the image shows. Make sure the bounding box fully contains the ENTIRE image/icon including all visual extensions.
 For "shape" elements: identify the shape type, fill color, border color.
 For shapes that contain text overlaid on them: list the shape first, then a separate text element on top. Do NOT put the text inside the shape element unless the text is an integral label of the shape itself (like text inside a button).
 

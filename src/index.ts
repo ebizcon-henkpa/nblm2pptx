@@ -130,16 +130,30 @@ async function convert(
     );
 
     // Step 3: Crop image elements from the original page (before any modifications)
+    // We add padding to image bounding boxes so the crop/mask fully covers the icon,
+    // even if the AI's bounding box is slightly too small.
+    const IMAGE_PADDING_PCT = 3; // extra % on each side
     const croppedImages = new Map<number, Buffer>();
     const imageRegions: { x: number; y: number; w: number; h: number }[] = [];
     for (let i = 0; i < slideData.elements.length; i++) {
       const element = slideData.elements[i];
       if (element?.type === "image") {
-        imageRegions.push(element.position);
+        // Pad the bounding box and clamp to 0-100
+        const padded = {
+          x: Math.max(0, element.position.x - IMAGE_PADDING_PCT),
+          y: Math.max(0, element.position.y - IMAGE_PADDING_PCT),
+          w: Math.min(100 - Math.max(0, element.position.x - IMAGE_PADDING_PCT),
+            element.position.w + IMAGE_PADDING_PCT * 2),
+          h: Math.min(100 - Math.max(0, element.position.y - IMAGE_PADDING_PCT),
+            element.position.h + IMAGE_PADDING_PCT * 2),
+        };
+        imageRegions.push(padded);
+        // Also update the element position so PPTX placement matches the padded crop
+        element.position = padded;
         try {
           const cropped = await ImageService.cropRegion(
             page.imageBuffer,
-            element.position,
+            padded,
             page.width,
             page.height
           );
