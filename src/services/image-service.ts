@@ -52,10 +52,10 @@ export class ImageService {
     formData.append(
       "prompt",
       "Remove ALL text, letters, numbers, and written words from this image completely. " +
-        "Also fill any solid-colored rectangular patches or blank areas seamlessly with " +
-        "the surrounding background pattern, texture, or color. " +
-        "The result should be a clean background image with no text and no blank patches - " +
-        "just smooth, continuous background patterns and decorative elements."
+        "Fill the areas where text was with the surrounding background color, gradient, or pattern. " +
+        "Do NOT generate any new objects, faces, figures, or illustrations. " +
+        "Keep all existing illustrations, icons, photos, and decorative elements exactly as they are. " +
+        "Only remove text - nothing else should change."
     );
     formData.append("model", "flux.1-kontext-pro");
     formData.append("n", "1");

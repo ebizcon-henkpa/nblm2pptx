@@ -167,38 +167,30 @@ async function convert(
     }
 
     // Step 4: Create clean background
+    // Strategy: FLUX removes text only (from the original image with icons intact).
+    // Then we mask out image regions AFTER, so the icons don't appear in the
+    // background. This prevents FLUX from "hallucinating" new images in the
+    // masked areas (e.g. generating faces where icons used to be).
     let cleanBackground: Buffer;
 
     if (skipTextRemoval) {
       cleanBackground = page.imageBuffer;
-      // Still mask image regions even when skipping text removal
-      if (imageRegions.length > 0) {
-        cleanBackground = await ImageService.maskImageRegions(
-          cleanBackground,
-          imageRegions,
-          slideData.backgroundColor ?? "#FFFFFF",
-          page.width,
-          page.height
-        );
-      }
     } else {
-      // First mask out image regions on the original, THEN send to FLUX.
-      // This way FLUX inpaints both text areas AND image holes seamlessly
-      // with the surrounding background pattern.
-      let imageForFlux = page.imageBuffer;
-      if (imageRegions.length > 0) {
-        console.log(`  Masking ${imageRegions.length} image region(s) before FLUX...`);
-        imageForFlux = await ImageService.maskImageRegions(
-          imageForFlux,
-          imageRegions,
-          slideData.backgroundColor ?? "#FFFFFF",
-          page.width,
-          page.height
-        );
-      }
+      console.log(`  Sending to FLUX for text removal...`);
+      cleanBackground = await imageService.removeTextFromImage(page.imageBuffer);
+    }
 
-      console.log(`  Sending to FLUX for text removal and background cleanup...`);
-      cleanBackground = await imageService.removeTextFromImage(imageForFlux);
+    // Mask out image regions AFTER text removal so photos/icons only exist
+    // as separate moveable PPTX objects (not duplicated in the background).
+    if (imageRegions.length > 0) {
+      console.log(`  Masking ${imageRegions.length} image region(s) from background...`);
+      cleanBackground = await ImageService.maskImageRegions(
+        cleanBackground,
+        imageRegions,
+        slideData.backgroundColor ?? "#FFFFFF",
+        page.width,
+        page.height
+      );
     }
 
     processedSlides.push({
