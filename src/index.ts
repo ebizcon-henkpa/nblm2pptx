@@ -129,10 +129,19 @@ async function convert(
       `  Slide ${page.pageNumber}: ${slideData.elements.length} elements detected`
     );
 
+    // Log all detected elements for debugging
+    for (let i = 0; i < slideData.elements.length; i++) {
+      const el = slideData.elements[i];
+      if (!el) continue;
+      const p = el.position;
+      const desc = el.type === "image" ? ` "${el.description}"` : el.type === "title" || el.type === "text" ? ` "${el.text.substring(0, 30)}..."` : "";
+      console.log(`    [${i}] ${el.type} at (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.w.toFixed(1)}x${p.h.toFixed(1)})${desc}`);
+    }
+
     // Step 3: Crop image elements from the original page (before any modifications)
-    // We add padding to image bounding boxes so the crop/mask fully covers the icon,
-    // even if the AI's bounding box is slightly too small.
-    const IMAGE_PADDING_PCT = 3; // extra % on each side
+    // We add generous padding to image bounding boxes so the crop/mask fully
+    // covers the icon, even if the AI's bounding box is too small.
+    const IMAGE_PADDING_PCT = 5; // extra % on each side
     const croppedImages = new Map<number, Buffer>();
     const imageRegions: { x: number; y: number; w: number; h: number }[] = [];
     for (let i = 0; i < slideData.elements.length; i++) {
@@ -147,6 +156,7 @@ async function convert(
           h: Math.min(100 - Math.max(0, element.position.y - IMAGE_PADDING_PCT),
             element.position.h + IMAGE_PADDING_PCT * 2),
         };
+        console.log(`    Image [${i}]: original (${element.position.x.toFixed(1)}, ${element.position.y.toFixed(1)}, ${element.position.w.toFixed(1)}x${element.position.h.toFixed(1)}) → padded (${padded.x.toFixed(1)}, ${padded.y.toFixed(1)}, ${padded.w.toFixed(1)}x${padded.h.toFixed(1)})`);
         imageRegions.push(padded);
         // Also update the element position so PPTX placement matches the padded crop
         element.position = padded;

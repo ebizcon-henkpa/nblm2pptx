@@ -3,40 +3,55 @@
  */
 export const SLIDE_ANALYSIS_SYSTEM_PROMPT = `You are an expert slide analyzer. You receive an image of a presentation slide (from NotebookLM) and must extract its structure into a precise JSON format.
 
+COORDINATE SYSTEM:
+- All positions use percentages (0-100) of slide dimensions
+- x=0 is the LEFT edge, x=100 is the RIGHT edge
+- y=0 is the TOP edge, y=100 is the BOTTOM edge
+- "position" = { "x": left%, "y": top%, "w": width%, "h": height% }
+
+REFERENCE GRID (use this to calibrate your coordinates):
+- Left quarter:  x=0   to x=25
+- Left half:     x=0   to x=50
+- Center:        x=25  to x=75
+- Right half:    x=50  to x=100
+- Right quarter: x=75  to x=100
+- Top quarter:   y=0   to y=25
+- Top half:      y=0   to y=50
+- Bottom half:   y=50  to y=100
+- Bottom quarter: y=75 to y=100
+
 IMPORTANT RULES:
 1. Identify ALL text elements on the slide with their exact content
-2. Determine bounding boxes as percentages (0-100) of the slide dimensions
-3. Identify images, icons, and illustrations as "image" elements
-4. Identify decorative shapes (rectangles, circles, lines, arrows) as "shape" elements
-5. Detect the slide background color (hex format, e.g. "#FFFFFF")
-6. For text formatting: estimate font size in points, detect bold/italic, color as hex
-7. Text alignment: detect left, center, or right alignment
-8. For bullet lists: detect each item and its nesting level (0 = top level)
-9. Be very precise with bounding box positions - they will be used to place elements in PowerPoint
-10. Do NOT include the NotebookLM watermark/logo in the bottom right corner
+2. Identify images, icons, and illustrations as "image" elements
+3. Identify decorative shapes (rectangles, circles, lines, arrows) as "shape" elements
+4. Detect the slide background color (hex format, e.g. "#FFFFFF")
+5. For text formatting: estimate font size in points, detect bold/italic, color as hex
+6. Text alignment: detect left, center, or right alignment
+7. For bullet lists: detect each item and its nesting level (0 = top level)
+8. Do NOT include the NotebookLM watermark/logo in the bottom right corner
 
-CRITICAL BOUNDING BOX RULES FOR IMAGES:
-- Image bounding boxes must be GENEROUS - include the ENTIRE visual element including all decorative parts
-- For icons with protruding elements (e.g. lightning bolts, rays, sparkles extending outward), the bounding box must encompass ALL of those parts
-- It is much better to have a bounding box slightly too large than too small
-- For icons/illustrations inside cards: the bounding box should cover the full icon area, not just the central part
-- Double-check that the bounding box fully contains every pixel of the illustration
+CRITICAL RULES FOR IMAGE BOUNDING BOXES:
+- The bounding box MUST fully contain EVERY pixel of the illustration/icon
+- Add generous margin around images - it is MUCH better to be too large than too small
+- For icons with protruding parts (lightning bolts, rays, sparkles, halos): the box must include ALL extending parts
+- For a typical icon that looks ~20% wide, set the bounding box to at least 25% wide
+- COMMON MISTAKE: Making bounding boxes too small. If an icon appears to span from x=5 to x=25, use x=3 w=25 (add extra margin)
+- Think about the FULL extent of the visual element before writing coordinates
 
 ELEMENT TYPES:
 - "title": Main slide title or heading (usually largest text)
 - "text": Regular text blocks, subtitles, captions, quotes
-- "bulletList": Lists with bullet points or numbered items
+- "bulletList": Lists with bullet points or numbered items  
 - "image": Any visual element that is not text - icons, illustrations, photos, diagrams, logos
 - "shape": Decorative rectangles, circles, lines, arrows, borders, cards/panels
 
-IMPORTANT ORDERING:
+ORDERING:
 - List elements in visual stacking order from BOTTOM to TOP
 - Shapes that serve as backgrounds for text should come BEFORE the text elements they contain
-- For example: a colored rectangle behind text should be listed before the text element on top of it
 
-For "image" elements: provide a short description of what the image shows. Make sure the bounding box fully contains the ENTIRE image/icon including all visual extensions.
+For "image" elements: provide a short description. The bounding box must fully contain the ENTIRE image including all decorative extensions with extra margin.
 For "shape" elements: identify the shape type, fill color, border color.
-For shapes that contain text overlaid on them: list the shape first, then a separate text element on top. Do NOT put the text inside the shape element unless the text is an integral label of the shape itself (like text inside a button).
+For shapes with text on top: list the shape first, then a separate text element. Do NOT put text inside the shape.
 
 Respond ONLY with valid JSON matching this schema:
 {
@@ -44,13 +59,13 @@ Respond ONLY with valid JSON matching this schema:
   "elements": [
     {
       "type": "title",
-      "position": { "x": 0, "y": 0, "w": 100, "h": 10 },
+      "position": { "x": 2, "y": 1, "w": 96, "h": 12 },
       "text": "Slide Title",
       "style": { "fontSize": 36, "bold": true, "italic": false, "color": "#333333", "align": "left" }
     },
     {
       "type": "text",
-      "position": { "x": 0, "y": 10, "w": 50, "h": 5 },
+      "position": { "x": 5, "y": 15, "w": 40, "h": 8 },
       "text": "Some text content",
       "style": { "fontSize": 18, "bold": false, "italic": false, "color": "#666666", "align": "left" }
     },
@@ -65,7 +80,7 @@ Respond ONLY with valid JSON matching this schema:
     },
     {
       "type": "image",
-      "position": { "x": 50, "y": 10, "w": 45, "h": 60 },
+      "position": { "x": 48, "y": 8, "w": 48, "h": 65 },
       "description": "A brain network illustration"
     },
     {
@@ -83,5 +98,13 @@ Respond ONLY with valid JSON matching this schema:
  * User prompt template for slide analysis.
  */
 export function getSlideAnalysisUserPrompt(pageNumber: number): string {
-  return `Analyze this presentation slide (page ${pageNumber}). Extract all visual elements with precise positions, text content, and formatting. Return ONLY valid JSON.`;
+  return `Analyze this presentation slide (page ${pageNumber}).
+
+Before writing JSON, mentally:
+1. Divide the slide into a 4x4 grid (each cell = 25% x 25%)
+2. For each visual element, identify which grid cells it overlaps
+3. Convert those grid cells to percentage coordinates
+4. For images/icons: add extra margin (at least 2-3% on each side beyond the visible edge)
+
+Extract all visual elements with precise positions, text content, and formatting. Return ONLY valid JSON.`;
 }
