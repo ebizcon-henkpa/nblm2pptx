@@ -2,6 +2,7 @@
   "name": "nblm2pptx",
   "version": "1.0.0",
   "description": "Convert NotebookLM PDF slides to editable PowerPoint presentations using AI",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {

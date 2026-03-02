@@ -1,4 +1,4 @@
-import pptxgen from "pptxgenjs";
+import pptxgenModule from "pptxgenjs";
 import type { AppConfig } from "../types/config.js";
 import type {
   ProcessedSlide,
@@ -21,6 +21,25 @@ const SHAPE_TYPE_MAP: Record<string, string> = {
   rounded_rectangle: "roundRect",
 };
 
+// pptxgenjs CJS/ESM interop: types don't export cleanly in ESM,
+// so we use permissive types for the slide and presentation objects.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PptxInstance = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Slide = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TextItem = { text: string; options: Record<string, any> };
+
+/**
+ * Create a new pptxgenjs presentation instance.
+ * Handles CJS/ESM interop where the default export may or may not be a constructor.
+ */
+function createPresentation(): PptxInstance {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Ctor = pptxgenModule as any;
+  return new Ctor();
+}
+
 /**
  * Service for generating PowerPoint presentations from analyzed slide data.
  */
@@ -37,7 +56,7 @@ export class PptxService {
    * @param outputPath - Path to write the .pptx file
    */
   async generate(slides: ProcessedSlide[], outputPath: string): Promise<void> {
-    const pres = new pptxgen();
+    const pres = createPresentation();
 
     // Set slide dimensions (widescreen 16:9 by default, matching NotebookLM)
     pres.defineLayout({
@@ -61,7 +80,7 @@ export class PptxService {
   /**
    * Add a single slide to the presentation.
    */
-  private addSlide(pres: pptxgen, processed: ProcessedSlide): void {
+  private addSlide(pres: PptxInstance, processed: ProcessedSlide): void {
     const slide = pres.addSlide();
     const { slideData, cleanBackground, croppedImages } = processed;
 
@@ -123,7 +142,7 @@ export class PptxService {
   /**
    * Add a title element to the slide.
    */
-  private addTitleElement(slide: pptxgen.Slide, element: TitleElement): void {
+  private addTitleElement(slide: Slide, element: TitleElement): void {
     const pos = this.toInches(element.position);
 
     slide.addText(element.text, {
@@ -146,7 +165,7 @@ export class PptxService {
   /**
    * Add a text element to the slide.
    */
-  private addTextElement(slide: pptxgen.Slide, element: TextElement): void {
+  private addTextElement(slide: Slide, element: TextElement): void {
     const pos = this.toInches(element.position);
 
     slide.addText(element.text, {
@@ -170,12 +189,12 @@ export class PptxService {
    * Add a bullet list element to the slide.
    */
   private addBulletListElement(
-    slide: pptxgen.Slide,
+    slide: Slide,
     element: BulletListElement
   ): void {
     const pos = this.toInches(element.position);
 
-    const textItems: pptxgen.TextProps[] = element.items.map((item) => ({
+    const textItems: TextItem[] = element.items.map((item) => ({
       text: item.text,
       options: {
         fontSize: element.style.fontSize,
@@ -205,7 +224,7 @@ export class PptxService {
    * Add an image element to the slide using cropped image data.
    */
   private addImageElement(
-    slide: pptxgen.Slide,
+    slide: Slide,
     element: ImageElement,
     elementIndex: number,
     croppedImages: Map<number, Buffer>
@@ -235,13 +254,13 @@ export class PptxService {
    * Add a shape element to the slide.
    */
   private addShapeElement(
-    slide: pptxgen.Slide,
+    slide: Slide,
     element: ShapeElement
   ): void {
     const pos = this.toInches(element.position);
 
     // Map shape types to pptxgenjs shape type strings
-    const shapeType = (SHAPE_TYPE_MAP[element.shapeType] ?? "rect") as pptxgen.ShapeType;
+    const shapeType = SHAPE_TYPE_MAP[element.shapeType] ?? "rect";
 
     // If shape has text, use addText with shape option
     if (element.text) {
