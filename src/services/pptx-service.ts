@@ -90,11 +90,27 @@ export class PptxService {
       data: `image/png;base64,${bgBase64}`,
     };
 
-    // Add each element on top of the background
+    // Add elements in layered order: shapes (bottom) → images → text (top)
+    // This ensures text is always readable on top of shapes and images.
+
+    // Pass 1: Shapes (background decorations, cards, panels)
+    for (const element of slideData.elements) {
+      if (element?.type === "shape") {
+        this.addShapeElement(slide, element);
+      }
+    }
+
+    // Pass 2: Images (photos, icons, illustrations)
     for (let i = 0; i < slideData.elements.length; i++) {
       const element = slideData.elements[i];
-      if (!element) continue;
+      if (element?.type === "image") {
+        this.addImageElement(slide, element, i, croppedImages);
+      }
+    }
 
+    // Pass 3: Text elements (titles, text blocks, bullet lists) on top
+    for (const element of slideData.elements) {
+      if (!element) continue;
       switch (element.type) {
         case "title":
           this.addTitleElement(slide, element);
@@ -104,12 +120,6 @@ export class PptxService {
           break;
         case "bulletList":
           this.addBulletListElement(slide, element);
-          break;
-        case "image":
-          this.addImageElement(slide, element, i, croppedImages);
-          break;
-        case "shape":
-          this.addShapeElement(slide, element);
           break;
       }
     }

@@ -22,9 +22,14 @@ ELEMENT TYPES:
 - "image": Any visual element that is not text - icons, illustrations, photos, diagrams, logos
 - "shape": Decorative rectangles, circles, lines, arrows, borders, cards/panels
 
+IMPORTANT ORDERING:
+- List elements in visual stacking order from BOTTOM to TOP
+- Shapes that serve as backgrounds for text should come BEFORE the text elements they contain
+- For example: a colored rectangle behind text should be listed before the text element on top of it
+
 For "image" elements: provide a short description of what the image shows.
 For "shape" elements: identify the shape type, fill color, border color.
-For shapes that contain text: use the "text" field within the shape element.
+For shapes that contain text overlaid on them: list the shape first, then a separate text element on top. Do NOT put the text inside the shape element unless the text is an integral label of the shape itself (like text inside a button).
 
 Respond ONLY with valid JSON matching this schema:
 {
