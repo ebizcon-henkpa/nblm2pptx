@@ -81,16 +81,16 @@ async function convert(
 
   // Load configuration
   const config = loadConfig({
-    azureVisionEndpoint: options["vision-endpoint"] as string | undefined,
-    azureVisionApiKey: options["vision-api-key"] as string | undefined,
-    azureImageEndpoint: options["image-endpoint"] as string | undefined,
-    azureImageApiKey: options["image-api-key"] as string | undefined,
+    azureVisionEndpoint: options["visionEndpoint"] as string | undefined,
+    azureVisionApiKey: options["visionApiKey"] as string | undefined,
+    azureImageEndpoint: options["imageEndpoint"] as string | undefined,
+    azureImageApiKey: options["imageApiKey"] as string | undefined,
     pdfDpi: options["dpi"] ? parseInt(options["dpi"] as string, 10) : undefined,
   });
 
-  const skipTextRemoval = options["skip-text-removal"] === true;
-  const maxSlide = options["max-slide"]
-    ? parseInt(options["max-slide"] as string, 10)
+  const skipTextRemoval = options["skipTextRemoval"] === true;
+  const maxSlide = options["maxSlide"]
+    ? parseInt(options["maxSlide"] as string, 10)
     : undefined;
 
   console.log(`\nConfig:`);
