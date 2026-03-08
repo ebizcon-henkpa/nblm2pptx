@@ -1,0 +1,41 @@
+{
+  "name": "nblm2pptx",
+  "version": "1.0.0",
+  "description": "Convert NotebookLM PDF slides to editable PowerPoint presentations using AI",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "nblm2pptx": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "notebooklm",
+    "pdf",
+    "pptx",
+    "powerpoint",
+    "ai",
+    "azure"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@azure/core-sse": "^2.3.0",
+    "commander": "^14.0.3",
+    "dotenv": "^17.3.1",
+    "mupdf": "^1.27.0",
+    "pptxgenjs": "^4.0.1",
+    "sharp": "^0.34.5",
+    "zod": "^4.3.6"
+  }
+}
